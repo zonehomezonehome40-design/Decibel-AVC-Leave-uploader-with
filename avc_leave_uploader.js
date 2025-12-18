@@ -7,7 +7,7 @@
         setTimeout(()=>p.remove(),2000);
         return;
     }
-    
+
     if(!window.XLSX){
         let s=document.createElement('script');
         s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
@@ -50,8 +50,8 @@
 
     document.getElementById('ex').onclick=()=>{
         let t=document.querySelector("table");
-        if(!t){alert("❌ Table not found on this page.");return;}
-        let csv=Array.from(t.rows).map(r=>Array.from(r.cells).map(c=>`"${c.innerText.trim().replace(/"/g,'""')}"`).join("\t")).join("\n");
+        if(!t){alert("❌ Table not found");return;}
+        let csv=[...t.rows].map(r=>[...r.cells].map(c=>`"${c.innerText.trim().replace(/"/g,'""')}"`).join("\t")).join("\n");
         let a=document.createElement("a");
         a.href="data:application/vnd.ms-excel,"+encodeURIComponent(csv);
         a.download="Crystal_Report_Export.xls";
@@ -63,19 +63,17 @@
     document.getElementById("up").onchange=async e=>{
         let f=e.target.files[0];
         if(!f)return;
-        let data=await f.arrayBuffer();
-        let wb=XLSX.read(data,{type:"array"});
-        let ws=wb.Sheets[wb.SheetNames[0]];
-        let rows=XLSX.utils.sheet_to_json(ws,{header:1}).slice(1).filter(r=>r[0]&&r[1]&&r[2]&&r[3]);
+        let wb=XLSX.read(await f.arrayBuffer(),{type:"array"});
+        let rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1}).slice(1).filter(r=>r[0]&&r[1]&&r[2]&&r[3]);
         let rejected=[],i=0;
         let search=document.querySelector("input.form-control.form-control-sm[type='search']");
-        if(!search){alert("❌ Search box not found.");return;}
-        function next(){
+        if(!search){alert("❌ Search box not found");return;}
+
+        (function next(){
             if(i>=rows.length){
                 if(rejected.length){
-                    let csv="EmployeeID,Date,LeaveCode,Remark\n"+rejected.map(r=>r.map(v=>`"${v}"`).join(",")).join("\n");
                     let a=document.createElement("a");
-                    a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+                    a.href=URL.createObjectURL(new Blob(["EmployeeID,Date,LeaveCode,Remark\n"+rejected.map(r=>r.map(v=>`"${v}"`).join(",")).join("\n")],{type:"text/csv"}));
                     a.download="Rejected_Leave_Entries.csv";
                     document.body.appendChild(a);
                     a.click();
@@ -84,27 +82,26 @@
                 c.remove();
                 return;
             }
-            let[id,date,leaveCode,remark]=rows[i++];
+            let [id,date,leave,remark]=rows[i++];
             search.value=id;
             search.dispatchEvent(new Event("input"));
             setTimeout(()=>{
-                let trList=document.querySelectorAll("table tbody tr"),matched=false;
-                trList.forEach(row=>{
-                    let txt=row.innerText.replace(/\s+/g," ").trim();
-                    if(txt.includes(id)&&txt.includes(date)){
-                        let cb=row.querySelector("input[type='checkbox']");
-                        if(cb&&!cb.checked)cb.click();
-                        let sel=row.querySelector("select");
-                        if(sel){sel.value=leaveCode;sel.dispatchEvent(new Event("change",{bubbles:true}));}
-                        let inputs=row.querySelectorAll("input[type='text']");
-                        if(inputs.length){inputs[inputs.length-1].value=remark;inputs[inputs.length-1].dispatchEvent(new Event("input",{bubbles:true}));}
-                        matched=true;
+                let found=false;
+                document.querySelectorAll("table tbody tr").forEach(r=>{
+                    let t=r.innerText.replace(/\s+/g," ");
+                    if(t.includes(id)&&t.includes(date)){
+                        let cb=r.querySelector("input[type='checkbox']");
+                        cb&&!cb.checked&&cb.click();
+                        let s=r.querySelector("select");
+                        s&&(s.value=leave,s.dispatchEvent(new Event("change",{bubbles:true})));
+                        let i=r.querySelectorAll("input[type='text']");
+                        i.length&&(i[i.length-1].value=remark,i[i.length-1].dispatchEvent(new Event("input",{bubbles:true})));
+                        found=true;
                     }
                 });
-                if(!matched)rejected.push([id,date,leaveCode,"Emp not found"]);
+                !found&&rejected.push([id,date,leave,"Emp not found"]);
                 next();
             },500);
-        }
-        next();
+        })();
     };
 })();
