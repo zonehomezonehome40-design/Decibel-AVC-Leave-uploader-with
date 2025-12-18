@@ -1,4 +1,5 @@
 (async()=>{
+    // Page URL check
     if(location.href!=="https://hrms1.mydecibel.com/TMS/AVCD_BulkLeaves.aspx"){
         let p=document.createElement("div");
         p.textContent="Not Allowed";
@@ -8,39 +9,40 @@
         return;
     }
 
+    // Load XLSX library if not present
     if(!window.XLSX){
         let s=document.createElement('script');
-        s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+        s.src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
         document.body.appendChild(s);
         await new Promise(r=>s.onload=r);
     }
 
+    // Create modal
     let c=document.createElement('div');
     c.style="position:fixed;top:5%;left:50%;transform:translateX(-50%);background:#fff;padding:40px 30px 30px 30px;z-index:999999;box-shadow:0 0 40px 10px rgba(0,0,0,0.8);border-radius:20px;text-align:center;font-family:sans-serif;min-width:500px;";
     c.innerHTML=`
-        <div style='margin-bottom:15px;'>
-            <span style='font-weight:bold;font-size:26px;color:maroon;'>AVC Leave Uploader</span>
-        </div>
+        <div style='margin-bottom:15px;'><span style='font-weight:bold;font-size:26px;color:maroon;'>AVC Leave Uploader</span></div>
         <button id='dl' style='background:#000;color:#fff;padding:10px 14px;border:none;border-radius:8px;margin:8px 0;cursor:pointer;font-size:14px;'>Download Template</button>
         <input type='file' id='up' accept='.xlsx' style='margin:8px;'>
         <button id='ex' style='background:#217346;color:#fff;padding:10px 14px;border:none;border-radius:8px;margin:8px;cursor:pointer;font-size:14px;'>Export to Excel</button>
         <div style='text-align:left;position:relative;margin-top:20px;'>
             <button id='closeBtn' style='background:maroon;color:#fff;padding:7px 14px;border:none;border-radius:8px;cursor:pointer;position:absolute;top:0;left:0;'>Close</button>
         </div>
-        <div id="footerText" style="visibility:hidden;margin-top:20px;font-size:13px;color:#000;text-align:center;height:16px;">
-            Prepared by Abdullah Shah and Mirza Laiq Ahmed
-        </div>
+        <div id="footerText" style="visibility:hidden;margin-top:20px;font-size:13px;color:#000;text-align:center;height:16px;">Prepared by Abdullah Shah and Mirza Laiq Ahmed</div>
     `;
     document.body.appendChild(c);
 
+    // Footer hover logic
     let footer=document.getElementById("footerText"), timer=null, hoverZone=document.createElement("div");
     hoverZone.style="position:absolute;bottom:10px;right:10px;width:30px;height:30px;z-index:1;background:transparent;";
     c.appendChild(hoverZone);
     hoverZone.onmouseenter=()=>{timer=setTimeout(()=>{footer.style.visibility="visible";footer.style.opacity="1";footer.style.transition="opacity 0.3s";},3000)};
     hoverZone.onmouseleave=()=>{clearTimeout(timer);footer.style.opacity="0";footer.style.visibility="hidden"};
 
+    // Close button
     document.getElementById('closeBtn').onclick=()=>c.remove();
 
+    // Download template
     document.getElementById('dl').onclick=()=>{
         let wb=XLSX.utils.book_new();
         let ws=XLSX.utils.aoa_to_sheet([["Emp ID","Attendance Date","Leave Type","Remarks"]]);
@@ -48,6 +50,7 @@
         XLSX.writeFile(wb,"Leave_Template.xlsx");
     };
 
+    // Export table to Excel
     document.getElementById('ex').onclick=()=>{
         let t=document.querySelector("table");
         if(!t){alert("❌ Table not found");return;}
@@ -60,9 +63,10 @@
         document.body.removeChild(a);
     };
 
+    // Upload Excel and fill form
     document.getElementById("up").onchange=async e=>{
         let f=e.target.files[0];
-        if(!f)return;
+        if(!f) return;
         let wb=XLSX.read(await f.arrayBuffer(),{type:"array"});
         let rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1}).slice(1).filter(r=>r[0]&&r[1]&&r[2]&&r[3]);
         let rejected=[],i=0;
@@ -99,7 +103,7 @@
                         found=true;
                     }
                 });
-                !found&&rejected.push([id,date,leave,"Emp not found"]);
+                if(!found) rejected.push([id,date,leave,"Emp not found"]);
                 next();
             },500);
         })();
